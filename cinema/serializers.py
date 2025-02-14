@@ -30,9 +30,14 @@ class ActorSerializer(serializers.ModelSerializer):
 
 
 class CinemaHallSerializer(serializers.ModelSerializer):
+    capacity = serializers.SerializerMethodField()
+
     class Meta:
         model = CinemaHall
         fields = ("id", "name", "rows", "seats_in_row", "capacity")
+
+    def get_capacity(self, obj):
+        return obj.rows * obj.seats_in_row
 
 
 class MovieSerializer(serializers.ModelSerializer):
@@ -45,9 +50,10 @@ class MovieListSerializer(MovieSerializer):
     genres = serializers.SlugRelatedField(
         many=True, read_only=True, slug_field="name"
     )
-    actors = serializers.SlugRelatedField(
-        many=True, read_only=True, slug_field="full_name"
-    )
+    actors = serializers.SerializerMethodField()
+
+    def get_actors(self, obj):
+        return [actor.full_name for actor in obj.actors.all()]
 
 
 class MovieDetailSerializer(MovieSerializer):
@@ -70,9 +76,7 @@ class MovieSessionListSerializer(MovieSessionSerializer):
     cinema_hall_name = serializers.CharField(
         source="cinema_hall.name", read_only=True
     )
-    cinema_hall_capacity = serializers.IntegerField(
-        source="cinema_hall.capacity", read_only=True
-    )
+    cinema_hall_capacity = serializers.SerializerMethodField()
     tickets_available = serializers.SerializerMethodField()
 
     class Meta:
@@ -86,10 +90,11 @@ class MovieSessionListSerializer(MovieSessionSerializer):
             "tickets_available"
         )
 
+    def get_cinema_hall_capacity(self, obj):
+        return obj.cinema_hall.rows * obj.cinema_hall.seats_in_row
+
     def get_tickets_available(self, obj):
-        total_capacity = obj.cinema_hall.rows * obj.cinema_hall.seats_in_row
-        taken_tickets = obj.tickets.count()
-        return total_capacity - taken_tickets
+        return self.get_cinema_hall_capacity(obj) - obj.tickets.count()
 
 
 class TakenPlaceSerializer(serializers.ModelSerializer):
@@ -121,7 +126,6 @@ class TicketSerializer(serializers.ModelSerializer):
 
 
 class TicketCreateSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Ticket
         fields = ("id", "row", "seat", "movie_session")
@@ -146,6 +150,7 @@ class OrderCreateSerializer(OrderSerializer):
         with transaction.atomic():
             tickets_data = validated_data.pop("tickets")
             order = Order.objects.create(**validated_data)
-            for ticket_data in tickets_data:
-                Ticket.objects.create(order=order, **ticket_data)
+            Ticket.objects.bulk_create([
+                Ticket(order=order, **ticket_data) for ticket_data in tickets_data
+            ])
             return order
