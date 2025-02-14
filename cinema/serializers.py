@@ -151,6 +151,9 @@ class OrderCreateSerializer(OrderSerializer):
             tickets_data = validated_data.pop("tickets")
             order = Order.objects.create(**validated_data)
             Ticket.objects.bulk_create([
-                Ticket(order=order, **ticket_data) for ticket_data in tickets_data
+                Ticket(
+                    order=order,
+                    **ticket_data
+                ) for ticket_data in tickets_data
             ])
             return order

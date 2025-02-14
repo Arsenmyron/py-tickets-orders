@@ -5,9 +5,17 @@ from rest_framework import viewsets
 from rest_framework.response import Response
 
 from cinema.serializers import (
-    GenreSerializer, ActorSerializer, CinemaHallSerializer, MovieSerializer,
-    MovieSessionSerializer, MovieSessionListSerializer, MovieDetailSerializer,
-    MovieSessionDetailSerializer, MovieListSerializer, OrderSerializer, OrderCreateSerializer
+    GenreSerializer,
+    ActorSerializer,
+    CinemaHallSerializer,
+    MovieSerializer,
+    MovieSessionSerializer,
+    MovieSessionListSerializer,
+    MovieDetailSerializer,
+    MovieSessionDetailSerializer,
+    MovieListSerializer,
+    OrderSerializer,
+    OrderCreateSerializer
 )
 from cinema.pagination import CustomPagination
 from cinema.models import Genre, Actor, CinemaHall, Movie, MovieSession, Order
@@ -17,7 +25,6 @@ class GenreViewSet(viewsets.ModelViewSet):
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
     pagination_class = None
-
 
 
 class ActorViewSet(viewsets.ModelViewSet):
@@ -73,10 +80,12 @@ class MovieSessionViewSet(viewsets.ModelViewSet):
     pagination_class = None
 
     def get_queryset(self):
-        queryset = self.queryset.prefetch_related("movie", "cinema_hall").annotate(
-            capacity=F("cinema_hall__rows") * F("cinema_hall__seats_in_row"),
+        queryset = (self.queryset.prefetch_related("movie", "cinema_hall")
+                    .annotate(
+            capacity=F("cinema_hall__rows"
+                       ) * F("cinema_hall__seats_in_row"),
             tickets_available=F("capacity") - Count("tickets")
-        ).order_by("id")
+        ).order_by("id"))
 
         date_str = self.request.query_params.get("date")
         movie_id = self.request.query_params.get("movie")
